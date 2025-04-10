@@ -1,0 +1,51 @@
+# === Go ===
+/bin/
+/build/
+/dist/
+*.exe
+*.test
+*.out
+*.log
+*.coverprofile
+*.prof
+
+# Dependency directories
+vendor/
+
+# IDE/editor files
+.vscode/
+.idea/
+*.swp
+
+# === Terraform ===
+*.tfstate
+*.tfstate.*
+.crash
+.terraform/
+.terraform.lock.hcl
+terraform.tfvars
+terraform.tfvars.json
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# === Makefile artifacts ===
+# Use this (if it's build output):
+/build/*.tar.gz
+/dist/*.tar.gz
+
+# === Docker ===
+*.tar
+*.img
+docker-compose.override.yml
+.docker/
+
+# Ignore Docker volumes, if stored locally
+volume-data/
+
+# === General ===
+.DS_Store
+Thumbs.db
+.env
+.env.*
