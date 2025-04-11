@@ -24,12 +24,13 @@ vendor/
 .terraform/
 .terraform.lock.hcl
 terraform.tfvars
+terraform.auto.tfvars
 terraform.tfvars.json
 override.tf
 override.tf.json
 *_override.tf
 *_override.tf.json
-*.tfplan
+tfplan
 
 # === Makefile artifacts ===
 # Use this (if it's build output):

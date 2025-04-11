@@ -7,4 +7,6 @@ resource "aws_ecr_repository" "epochalypse" {
     encryption_type = "AES256"
   }
 
+  force_delete = true
+
 }
