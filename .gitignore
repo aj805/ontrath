@@ -29,6 +29,7 @@ override.tf
 override.tf.json
 *_override.tf
 *_override.tf.json
+*.tfplan
 
 # === Makefile artifacts ===
 # Use this (if it's build output):
