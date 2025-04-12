@@ -51,3 +51,6 @@ volume-data/
 Thumbs.db
 .env
 .env.*
+
+k8s/aws-ingress/ingressclassparams.yaml
+k8s/value-overrides/eks-dev.yaml

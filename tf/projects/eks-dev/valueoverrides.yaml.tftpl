@@ -1,0 +1,11 @@
+image:
+  repository: ${image_repo_root}/${image_repo}
+  pullPolicy: Always
+
+serviceAccount:
+  name: epoch-api
+  eks.amazonaws.com/role-arn: ${service_account_role_arn}
+
+ingress:
+  enabled: true
+  className: alb

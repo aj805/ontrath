@@ -1,8 +1,6 @@
 # Epochalypse
 
-# 🚀 One-Click Lambda or ECS Deployment Guide
-
-This project includes infrastructure-as-code, a containerized Lambda function, and a one-click deployment command using **Make**.
+This project includes infrastructure-as-code, a containerized Lambda function, a containerized http service for ECS and EKS deployments, and deployment commands using **Make**.
 
 ---
 
@@ -10,11 +8,16 @@ This project includes infrastructure-as-code, a containerized Lambda function, a
 
 You’ll need the following CLI tools installed (not included in this repo):
 
-- **Terraform** (>= 1.4)  
-- **AWS CLI** (>= 2.10)  
-- **Docker**  
-- **Make** (>= 4.0)  
-- **jq**
+- **Terraform** - Tested with 1.11.3 
+- **AWS CLI** - Tested with aws-cli/2.24.0 Python/3.12.6 Darwin/24.3.0 exe/x86_64  
+- **Docker** - Tested with v28.0.4
+- **Make** - Tested with GNU Make 3.81
+- **jq** - Tested with jq-1.6-159-apple-gcff5336-dirty
+
+For the EKS implementation:
+
+- **kubectl** - Client Version: v1.32.1
+- **helm** - v3.17.3
 
 ✅ Ensure your AWS CLI is authenticated and configured using:
 
@@ -42,7 +45,8 @@ export IMAGE_TAG=one-click-demo
 
 ---
 
-## 🛠️ 'One-Click' Deployment
+## 🛠️ Deployment Commands
+
 
 ### Lambda + API Gateway
 
@@ -54,8 +58,8 @@ make lambda-deploy IMAGE_TAG=<SET AN IMAGE TAG>
 
 This will:
 
-- Create `terraform.tfvars` files for Terraform
-- Build and push a Docker image for the Lambda function  
+- Create `terraform.auto.tfvars` files for Terraform
+- Build and push a Docker image from the ./epoch-api-lambda app for the Lambda function  
 - Apply the Terraform stack to provision infrastructure creating a local terraform.tfstate file in the project directory. 
 - Poll the deployed API Gateway endpoint until it responds successfully
 
@@ -74,12 +78,46 @@ The IMAGE_TAG can be anything.
 
 This will:
 
-- Create `terraform.tfvars` files for Terraform
-- Build and push a Docker image for the Lambda function  
+- Create `terraform.auto.tfvars` files for Terraform.
+- Apply the Account Landing project to create the ECR Repository.
+- Build and push a Docker image from the ./epoch-api app for the ECS Task Definition and Service.
 - Apply the Terraform stack to provision infrastructure creating a local terraform.tfstate file in the project directory. 
-- The Terraform for the ECS Service definition has the `wait_for_ready_state = true` set. So the service should be ready when Terraform is done applying.
+- The Terraform for the ECS Service definition has the `wait_for_ready_state = true` set so the service should be ready when Terraform is done applying.
+- The ALB DNS Name should be output to be able to use in curl or a browser. 
 
 ---
+
+### EKS Auto Mode + AWS Ingress Class
+
+ETA approx 15-25 minutes. 8-12 min for the infra, 1-2 min for Docker, 6-10 min for the EKS Service to deploy via Helm and for the ALB to be ready. The Helm command will wait and timeout after 11 minutes. 
+
+To deploy the EKS Auto Mode + AWS Ingress Class run:
+
+```bash
+make eks-deploy IMAGE_TAG=<SET AN IMAGE TAG>
+```
+
+The IMAGE_TAG can be any string I believe up to 63 characters. 
+
+This will:
+
+- Create `terraform.auto.tfvars` files for Terraform.
+- Apply the Account Landing project to create the ECR Repository.
+- Build and push a Docker image from the ./epoch-api app for the EKS Deployment.
+- Apply the tf/projects/eks-dev project to create an EKS Cluster in Auto Mode
+- Generate manifests for AWS Ingress Class Params and a value override file for Helm install. 
+- Kubectl Apply the AWS Ingress manifests
+- Helm Upgrade/Install the ./k8s/epoch-api chart and wait
+
+An ALB is provisined during the helm install. 
+
+The curl command for this implementation will need to pass the Host header. 
+
+```bash
+curl -H "Host: epoch-api.dev" <ALB DNS>
+```
+
+The host is defined in the k8s/epoch-api/templatees/ingress.yaml
 
 ## 🧪 API Response Format
 
@@ -120,10 +158,12 @@ make destroy-all
 │   │   ├── account-landing/       # Terraform Module for AWS Account Landing - ECR setup
 │   │   ├── api-lambda/            # Terraform Module for API Gateway + Lambda
 │   │   ├── ecs-fargate-infra/     # Terraform Module for infra base. VPC, Subnets, ALB, ECS Cluster, etc
+│   │   ├── eks/                   # Terraform Module for infra base. VPC, Subnets and EKS Cluster
 │   ├── projects/
 │   │   ├── account-landing-dev/   # Terraform Project for AWS Dev Account Landing Creation
 │   │   └── api-lambda-dev/        # Terraform Project for API Gateway + Lambda Deploy
 │   │   └── ecs-fargate-dev/       # Terraform Project for ECS Fargate Deploy
+│   │   └── eks-dev/               # Terraform Project for EKS Deploy
 ├── Makefile                       # CICD Commands
 └── ReadMe.md                      # You're here
 ```
