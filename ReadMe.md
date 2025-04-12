@@ -1,8 +1,8 @@
 # Epochalypse
 
-# 🚀 One-Click Lambda Deployment Guide
+# 🚀 One-Click Lambda or ECS Deployment Guide
 
-This project includes infrastructure-as-code, a containerized Lambda function, and a one-click deployment script using **Make**, **Terraform**, and the **AWS CLI**.
+This project includes infrastructure-as-code, a containerized Lambda function, and a one-click deployment command using **Make**.
 
 ---
 
@@ -21,53 +21,63 @@ You’ll need the following CLI tools installed (not included in this repo):
 ```bash
 aws configure
 ```
+Or by setting the AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY env vars + AWS_SESSION_TOKEN if needed. 
 
 You should have administrator-level access to the AWS account.
 
 ---
 
-## 📁 Project Structure
-
-```
-.
-├── epoch-api-lambda/               # Go-based Lambda API source code
-├── tf/
-│   ├── projects/
-│   │   ├── account-landing-dev/   # Terraform for ECR setup
-│   │   └── api-lambda-dev/        # Terraform for Lambda + API Gateway
-├── Makefile                        # One-click deployment logic
-└── ReadMe.md                       # You're here
-```
-
----
-
 ## ⚙️ Environment Configuration
 
-You may optionally create a `.env` file in the project root to override Makefile defaults:
+You may set ENV vars or optionally create a `.env` file in the project root to override Makefile defaults:
 
-```env
-AWS_REGION=us-west-2
-GITHUB_ORG=ajontra
-LAMBDA_NAME=aj-epoch-time
-IMAGE_TAG=lambda-one-click
+```bash
+export AWS_REGION=us-west-2
+export GITHUB_ORG=ajontra
+export LAMBDA_NAME=aj-epoch-time
+export IMAGE_REPO_ROOT=305578904386.dkr.ecr.us-west-2.amazonaws.com
+export IMAGE_REPO=ajontra/epochalypse
+export IMAGE_TAG=one-click-demo
 ```
 
 ---
 
-## 🛠️ One-Click Deployment
+## 🛠️ 'One-Click' Deployment
 
-To deploy the entire stack, run:
+### Lambda + API Gateway
+
+To deploy the Lambda + API Gateway solution run:
 
 ```bash
-make one-click-lambda-demo IMAGE_TAG=<SET AN IMAGE TAG>
+make lambda-deploy IMAGE_TAG=<SET AN IMAGE TAG>
 ```
 
 This will:
 
-- Create `terraform.auto.tfvars` files for both Terraform projects  
+- Create `terraform.tfvars` files for Terraform
 - Build and push a Docker image for the Lambda function  
-- Apply the Terraform stack to provision infrastructure  
+- Apply the Terraform stack to provision infrastructure creating a local terraform.tfstate file in the project directory. 
 - Poll the deployed API Gateway endpoint until it responds successfully
+
+
+### ECS Fargate + ALB
+
+ETA approx 6-12 minutes. 3-5 min for the infra, 1-2 min for Docker, 3-5 min for the ECS Service to deploy and be ready. 
+
+To deploy the ECS Fargate + ALB solution run:
+
+```bash
+make ecs-deploy IMAGE_TAG=<SET AN IMAGE TAG>
+```
+
+The IMAGE_TAG can be anything. 
+
+This will:
+
+- Create `terraform.tfvars` files for Terraform
+- Build and push a Docker image for the Lambda function  
+- Apply the Terraform stack to provision infrastructure creating a local terraform.tfstate file in the project directory. 
+- The Terraform for the ECS Service definition has the `wait_for_ready_state = true` set. So the service should be ready when Terraform is done applying.
 
 ---
 
@@ -87,11 +97,43 @@ curl https://<invoke_url>
 
 ---
 
+## 🧼 Cleanup
+
+There are a few destroy commands in the Makefile. You will be prompted to enter 'yes' for each statefile. 
+
+To destroy everything:
+
+```bash
+make destroy-all
+```
+
+---
+
+## 📁 Project Structure
+
+```
+.
+├── epoch-api-lambda/              # GOlang Lambda API source code
+├── epoch-api/                     # GOlang Basic Http Service for ECS or Kubernetes
+├── tf/
+│   ├── modules/
+│   │   ├── account-landing/       # Terraform Module for AWS Account Landing - ECR setup
+│   │   ├── api-lambda/            # Terraform Module for API Gateway + Lambda
+│   │   ├── ecs-fargate-infra/     # Terraform Module for infra base. VPC, Subnets, ALB, ECS Cluster, etc
+│   ├── projects/
+│   │   ├── account-landing-dev/   # Terraform Project for AWS Dev Account Landing Creation
+│   │   └── api-lambda-dev/        # Terraform Project for API Gateway + Lambda Deploy
+│   │   └── ecs-fargate-dev/       # Terraform Project for ECS Fargate Deploy
+├── Makefile                       # CICD Commands
+└── ReadMe.md                      # You're here
+```
+
 ## 🔧 Useful Makefile Targets
 
 | Target                                 | Description                                        |
 |----------------------------------------|----------------------------------------------------|
-| `make one-click-lambda-demo`           | Full end-to-end deploy and validation              |
+| `make lambda-deploy`                   | Full end-to-end deploy and validation of Lambda    |
+| `make ecs-deploy`                      | Full end-to-end deploy and validation of ECS       |
 | `make docker-build-lambda`             | Build Lambda Docker image                          |
 | `make docker-push-to-ecr`              | Push Docker image to ECR                           |
 | `make docker-build-lambda-and-push`    | Build & push Lambda image                          |
@@ -103,6 +145,7 @@ curl https://<invoke_url>
 | `make init-api-lambda-dev`             | Terraform init for API Gateway + Lambda project    |
 | `make plan-api-lambda-dev`             | Terraform plan for API Gateway + Lambda            |
 | `make apply-api-lambda-dev`            | Terraform apply for API Gateway + Lambda           |
+| `make destroy-all`                     | Run all the make destroy commands                  |
 
 ---
 

@@ -12,20 +12,7 @@ ifndef AWS_REGION
   $(error AWS_REGION is not set. Export it or pass it inline: AWS_REGION=us-west-2 make ...)
 endif
 
-.PHONY: init-account-landing-dev \
-        plan-account-landing-dev \
-		apply-account-landing-dev \
-        init-api-lambda-dev \
-		plan-api-lambda-dev \
-		apply-api-lambda-dev
-		test-lambda \
-		docker-build-lambda \
-		docker-push-to-ecr \
-		docker-build-lambda-and-push \
-		create-lambda-tf-vars \
-		copy-tf-vars \
-		one-click-lambda-demo
-
+.PHONY:
 
 init-account-landing-dev:
 	terraform -chdir=tf/projects/account-landing-dev init
@@ -99,7 +86,7 @@ create-lambda-tf-vars:
 copy-tf-vars:
 	@cp terraform.tfvars $(PROJECT_PATH)/terraform.tfvars
 
-one-click-lambda-demo:
+lambda-deploy:
 	@$(MAKE) create-lambda-tf-vars IMAGE_TAG=$(IMAGE_TAG)
 	@$(MAKE) init-account-landing-dev
 	@$(MAKE) plan-account-landing-dev
@@ -133,12 +120,48 @@ one-click-lambda-demo:
 	@echo "\n"
 	@echo "🎉 One-click Lambda deploy complete!"
 
-destroy-lambda-dev:
-    terraform -chdir=tf/projects/api-lambda-dev init
-	terraform -chdir=tf/projects/api-lambda-dev destroy
+destroy-lambda:
+	terraform -chdir=tf/projects/api-lambda-dev apply -destroy
 
-destroy-account-landing-dev:
-    terraform -chdir=tf/projects/account-landing-dev init
-	terraform -chdir=tf/projects/account-landing-dev destroy
+destroy-account-landing:
+	terraform -chdir=tf/projects/account-landing-dev apply -destroy
 
-destroy-all: destroy-lambda-dev destroy-account-landing-dev
+docker-build:
+	@echo "Building Docker Image $(IMAGE_FULL_PATH)"
+	docker buildx build --platform linux/amd64 -t $(IMAGE_FULL_PATH) ./epoch-api --file epoch-api/Dockerfile
+
+docker-build-and-push: \
+    docker-build \
+	docker-push-to-ecr
+
+ecs-deploy:
+	terraform -chdir=tf/projects/account-landing-dev apply -auto-approve
+	@$(MAKE) docker-build-and-push IMAGE_TAG=$(IMAGE_TAG)
+	TF_VAR_image=$(IMAGE_FULL_PATH) terraform -chdir=tf/projects/ecs-fargate-dev apply -auto-approve
+	@echo "✅ Finished deployment. Waiting for ECS Service to be ready...\n"
+	@ECS_URL=$$(terraform -chdir=tf/projects/ecs-fargate-dev output -json | jq -r '.alb_dns_name.value'); \
+	echo "🔗 Polling: $$ECS_URL"; \
+	while true; do \
+		echo "⏳ Checking..."; \
+		RES=$$(curl -s -D - "$$ECS_URL"); \
+		BODY=$$(echo "$$RES" | sed -n '/^\r$$/,$$p' | tail -n +2); \
+		STATUS=$$(echo "$$RES" | grep HTTP | awk '{print $$2}'); \
+		if [ "$$STATUS" = "200" ] && \
+		   echo "$$BODY" | jq -e '."The current epoch time" | numbers' >/dev/null 2>&1; then \
+			echo "✅ ECS Service responded with correct valid JSON:"; \
+			echo "$$BODY"; \
+			break; \
+		else \
+			echo "❌ Not ready yet (status: $$STATUS, retrying in 5s..."; \
+			sleep 5; \
+		fi; \
+	done
+	@echo "\n"
+
+destroy-ecs:
+	terraform -chdir=tf/projects/ecs-fargate-dev apply -destroy
+
+destroy-all: \
+	destroy-lambda \
+	destroy-account-landing \
+	destroy-ecs
