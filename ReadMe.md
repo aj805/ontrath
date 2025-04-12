@@ -14,7 +14,7 @@ You’ll need the following CLI tools installed (not included in this repo):
 - **Make** - Tested with GNU Make 3.81
 - **jq** - Tested with jq-1.6-159-apple-gcff5336-dirty
 
-For the EKS implementation the following are also requried:
+For the EKS implementation the following are also required:
 
 - **kubectl** - Client Version: v1.32.1
 - **helm** - v3.17.3
