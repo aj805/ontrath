@@ -109,7 +109,7 @@ This will:
 - Kubectl Apply the AWS Ingress manifests
 - Helm Upgrade/Install the ./k8s/epoch-api chart and wait
 
-An ALB is provisined during the helm install. 
+An ALB is provisioned during the helm install. 
 
 The curl command for this implementation will need to pass the Host header. 
 
