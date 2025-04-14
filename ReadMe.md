@@ -32,7 +32,7 @@ You should have administrator-level access to the AWS account.
 
 ## ⚙️ Environment Configuration
 
-You may set ENV vars or optionally create a `.env` file in the project root to override Makefile defaults:
+Set ENV vars in an `.env` file in the project root:
 
 ```bash
 export AWS_REGION=us-west-2
